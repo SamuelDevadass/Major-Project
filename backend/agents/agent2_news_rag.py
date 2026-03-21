@@ -154,12 +154,10 @@ class NewsRAGAgent:
         articles = self._fetch_news(company_name, ticker)
 
         if not articles:
-            return {
-                "news_available": False,
-                "rag_chunks":     [],
-                "scores_2025":    None,
-                "missing_2025":   True,
-            }
+            return {"news_available": False,
+                    "rag_chunks":     [],
+                    "scores_2025":    None,
+                    "missing_2025":   True,}
 
         chunks = []
         for article in articles:
@@ -168,12 +166,10 @@ class NewsRAGAgent:
                 chunks.extend(self._chunk_text(content))
 
         if not chunks:
-            return {
-                "news_available": True,
-                "rag_chunks":     [],
-                "scores_2025":    None,
-                "missing_2025":   True,
-            }
+            return {"news_available": True,
+                    "rag_chunks":     [],
+                    "scores_2025":    None,
+                    "missing_2025":   True,}
 
         ##  BUILD FAISS INDEX 
         embeddings = model.encode(chunks, convert_to_numpy=True, normalize_embeddings=True)
@@ -208,17 +204,14 @@ class NewsRAGAgent:
         
         search_query = self._extract_org_name(company_name)
         
-        print(f"\n{'='*70}")
         print(f"FETCHING NEWS FOR: {company_name}")
         print(f"Cleaned search query: {search_query}")
-        print(f"{'='*70}")
         
         all_articles = []
         
         ## PART 1: GOOGLE NEWS RSS (aggregated sources)        
         print(f"\nPART 1: GOOGLE NEWS RSS")
-        print(f"{'─'*70}")
-        
+
         # Attempt 1: ESG-specific
         esg_keywords = "ESG sustainability environment social governance"
         SEARCH_VARIANTS = [ f"{search_query}",  # general (MOST IMPORTANT)
@@ -259,27 +252,15 @@ class NewsRAGAgent:
         
         # PART 2: DIRECT INDIAN ARTICLES SCRAPING        
         print(f"PART 2: DIRECT INDIAN SOURCES")
-        print(f"{'─'*70}")
         
         direct_articles = self._fetch_direct_sources(search_query)
         all_articles.extend(direct_articles)
         
         print(f"Direct sources: {len(direct_articles)} articles collected\n")
         
-        # DEDUPLICATE & RETURN
-        seen_titles = set()
-        unique_articles = []
-        for article in all_articles:
-            title_lower = article["title"].lower()
-            if title_lower not in seen_titles:
-                seen_titles.add(title_lower)
-                unique_articles.append(article)
-        
-        print(f"{'='*70}")
-        print(f"FINAL RESULT: {len(unique_articles)} unique articles (from both sources)")
-        print(f"{'='*70}\n")
+        print(f"FINAL RESULT: {len(all_articles)} articles (from both sources)")
         #return unique_articles[:MAX_ARTICLES * 3]
-        return unique_articles  
+        return all_articles  
 
     def _fetch_direct_sources(self, search_query: str) -> list[dict]:
         
@@ -338,14 +319,11 @@ class NewsRAGAgent:
                     else:
                         print(f"Using title only")
                     
-                    articles.append({
-                        "title": title,
-                        "source": source["name"],
-                        "date": f"Date not available. System scraped article on {datetime.now().isoformat()}",  
-                        "content": content or title,
-                        "type": "Direct-Source",
-                    })
-                
+                    articles.append({"title": title,
+                                     "source": source["name"],
+                                     "date": f"Date not available. System scraped article on {datetime.now().isoformat()}",  
+                                     "content": content or title,
+                                     "type": "Direct-Source",})
                 print(f"Collected {len(articles)} articles from {source['name']}")
                 
                 
@@ -373,7 +351,7 @@ class NewsRAGAgent:
             if not feed.entries:
                 return []
             
-            print(f"   Filtering articles (last 6 months only):")
+            print(f"Filtering articles (last 6 months only):")
             
             for idx, entry in enumerate(feed.entries[:MAX_ARTICLES * 3], 1):
                 title = entry.get("title", "").strip()
@@ -408,17 +386,14 @@ class NewsRAGAgent:
                 else:
                     print(f"No content, using title only")
                 
-                articles.append({
-                    "title": title,
-                    "source": source,
-                    "date": pub_date_str,
-                    "content": content or title,
-                    "type": search_type,
-                })
+                articles.append({"title": title,
+                                 "source": source,
+                                 "date": pub_date_str,
+                                 "content": content or title,
+                                 "type": search_type,})
                 
                 if len(articles) >= MAX_ARTICLES:
                     break
-            
             print(f"Collected {len(articles)} articles from {search_type} search\n")
             
         except Exception as e:
