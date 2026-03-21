@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ESG Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+
+<!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <div class="dot"></div>
+      ESG_INTEL
+    </div>
+    <div class="nav-tag">SUSTAINABILITY ANALYSIS PLATFORM v1.0</div>
+  </nav>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-eyebrow">Multi-Source Agentic AI System</div>
+      <h1>ESG <span>Intelligence</span><br>Platform</h1>
+      <p class="hero-sub">
+        Analyze corporate sustainability metrics across Environmental, Social &amp; Governance pillars using real-time data validation and AI-generated insights.
+      </p>
+    </section>
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-val">700+</span>
+        <div class="stat-label">Companies</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-val">12</span>
+        <div class="stat-label">ESG Metrics</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-val">3</span>
+        <div class="stat-label">Pillars</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-val">AI</span>
+        <div class="stat-label">Verdict</div>
+      </div>
+    </div>
+
+    <!-- INPUT PANEL -->
+    <div class="panel" id="input-panel">
+      <div class="panel-header">
+        <div class="panel-header-dot e"></div>
+        <div class="panel-header-dot s"></div>
+        <div class="panel-header-dot g"></div>
+        <span class="panel-title">CONFIGURE ANALYSIS PARAMETERS</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="input-grid">
+
+          <!-- COMPANY MULTISELECT -->
+          <div class="field-group">
+            <label class="field-label">
+              Select Companies
+              <span class="badge">MAX 5</span>
+            </label>
+            <div class="multiselect-wrapper" id="company-ms">
+              <div class="multiselect-trigger" id="company-trigger" onclick="toggleDropdown('company')">
+                <div class="selected-tags" id="company-tags">
+                  <span class="multiselect-placeholder" id="company-placeholder">Choose companies...</span>
+                </div>
+                <span class="chevron">▼</span>
+              </div>
+              <div class="multiselect-dropdown" id="company-dropdown">
+                <input class="dropdown-search" placeholder="🔍  Search company..." id="company-search" oninput="filterOptions('company')" onclick="event.stopPropagation()" />
+                <div id="company-options"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- YEAR RANGE SELECT -->
+          <div class="field-group">
+            <label class="field-label">
+              Select Year Range
+              <span class="badge">3 YRS</span>
+            </label>
+            <div class="multiselect-wrapper" id="year-ms">
+              <div class="multiselect-trigger" id="year-trigger" onclick="toggleDropdown('year')">
+                <div class="selected-tags" id="year-tags">
+                  <span class="multiselect-placeholder" id="year-placeholder">Choose year range...</span>
+                </div>
+                <span class="chevron">▼</span>
+              </div>
+              <div class="multiselect-dropdown" id="year-dropdown">
+                <div id="year-options"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SELECTION SUMMARY -->
+        <div class="selection-summary" id="selection-summary">
+          <span class="summary-prefix">awaiting selection —</span>
+          <span style="color: var(--text-dim); font-family: var(--mono); font-size:0.75rem;">choose companies and year range to begin</span>
+        </div>
+
+        <!-- RUN BUTTON -->
+        <button class="btn-run" id="btn-run" disabled onclick="startAnalysis()">
+          ▶ &nbsp; Run ESG Analysis
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ANALYSIS SECTION -->
+    <div id="analysis-section">
+      <div class="analysis-panel">
+        <div class="analysis-header">
+          <span class="analysis-title">AGENTIC PIPELINE — RUNNING</span>
+          <div class="analysis-status">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text" style="color: var(--amber);">Processing...</span>
+          </div>
+        </div>
+        <div class="analysis-body">
+
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+
+          <div class="agent-steps">
+
+            <div class="agent-step" id="step-1">
+              <div class="step-icon">📦</div>
+              <div class="step-content">
+                <div class="step-name">MCP Orchestrator — Initializing</div>
+                <div class="step-detail" id="step-1-detail">Booting agent pipeline, parsing request parameters...</div>
+              </div>
+              <div class="step-badge" id="step-1-badge">QUEUED</div>
+            </div>
+
+            <div class="agent-step" id="step-2">
+              <div class="step-icon">🗄️</div>
+              <div class="step-content">
+                <div class="step-name">RAG Agent — Kaggle Dataset Query</div>
+                <div class="step-detail" id="step-2-detail">Fetching ESG metrics from local vector store...</div>
+              </div>
+              <div class="step-badge" id="step-2-badge">QUEUED</div>
+            </div>
+
+            <div class="agent-step" id="step-3">
+              <div class="step-icon">🌐</div>
+              <div class="step-content">
+                <div class="step-name">Validation Agent — Yahoo Finance</div>
+                <div class="step-detail" id="step-3-detail">Cross-referencing scores against Sustainalytics data...</div>
+              </div>
+              <div class="step-badge" id="step-3-badge">QUEUED</div>
+            </div>
+
+            <div class="agent-step" id="step-4">
+              <div class="step-icon">🤖</div>
+              <div class="step-content">
+                <div class="step-name">LLM Summary Agent — Groq / LLaMA3</div>
+                <div class="step-detail" id="step-4-detail">Generating per-company ESG narratives...</div>
+              </div>
+              <div class="step-badge" id="step-4-badge">QUEUED</div>
+            </div>
+
+            <div class="agent-step" id="step-5">
+              <div class="step-icon">📊</div>
+              <div class="step-content">
+                <div class="step-name">Excel Export Agent — Building Reports</div>
+                <div class="step-detail" id="step-5-detail">Generating cross-company and per-company Excel files...</div>
+              </div>
+              <div class="step-badge" id="step-5-badge">QUEUED</div>
+            </div>
+
+            <div class="agent-step" id="step-6">
+              <div class="step-icon">🏆</div>
+              <div class="step-content">
+                <div class="step-name">Final Verdict Agent — ESG Recommendation</div>
+                <div class="step-detail" id="step-6-detail">Computing weighted scores and generating final verdict...</div>
+              </div>
+              <div class="step-badge" id="step-6-badge">QUEUED</div>
+            </div>
+
+          </div>
+
+          <!-- TERMINAL LOG -->
+          <div class="terminal-log" id="terminal-log">
+            <div class="log-line"><span class="log-time">--:--:--</span><span class="log-msg info">Waiting to start...</span></div>
+          </div>
+
+          <!-- VIEW RESULTS -->
+          <button class="btn-results" id="btn-results" disabled onclick="goToResults()">
+            View Full Analysis &amp; AI Report
+            <span class="arrow">→</span>
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    ESG INTELLIGENCE PLATFORM &nbsp;·&nbsp; BTECH FINAL PROJECT &nbsp;·&nbsp; POWERED BY GROQ + MCP + RAG
+  </footer>
+
+  <script src="js/index.js"></script>
+
+</body>
+</html>

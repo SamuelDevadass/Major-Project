@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ESG Analysis — Results</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/results.css">
+</head>
+<body>
+
+<!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <div class="nav-dot"></div>
+      ESG_INTEL
+    </div>
+    <div class="nav-right">
+      <div class="nav-info" id="nav-info">— results loaded</div>
+      <button class="btn-exit" onclick="exitToHome()">✕ &nbsp;EXIT</button>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-eyebrow">Analysis Complete</div>
+        <div class="page-title">ESG Intelligence Report</div>
+        <div class="page-meta" id="page-meta">
+          <span class="meta-item">Companies: <span class="val" id="meta-companies">—</span></span>
+          <span class="meta-item">Period: <span class="val" id="meta-years">—</span></span>
+          <span class="meta-item">Generated: <span class="val" id="meta-time">—</span></span>
+        </div>
+      </div>
+      <div class="download-group">
+        <button class="btn-dl" onclick="downloadFile(1)">
+          <span class="dl-icon">📥</span> Year-wise Report
+        </button>
+        <button class="btn-dl" onclick="downloadFile(2)">
+          <span class="dl-icon">📥</span> Company-wise Report
+        </button>
+      </div>
+    </div>
+
+    <!-- VERDICT CARD -->
+    <div class="verdict-card" id="verdict-card">
+      <div class="verdict-header">
+        <span class="verdict-icon">🏆</span>
+        <span class="verdict-label">Final AI Verdict — ESG Champion</span>
+      </div>
+      <div class="verdict-winner" id="verdict-winner">
+        Loading verdict...
+      </div>
+      <div class="verdict-text" id="verdict-text">
+        Generating AI recommendation...
+      </div>
+      <div class="rankings" id="rankings-row"></div>
+    </div>
+
+    <!-- PILLAR OVERVIEW -->
+    <div class="section-label">ESG Pillar Overview — Avg Across Selection</div>
+    <div class="pillar-grid">
+
+      <div class="pillar-card e-card">
+        <div class="pillar-header">
+          <div class="pillar-icon">🌿</div>
+          <div>
+            <div class="pillar-name">Environmental</div>
+            <div class="pillar-weight">Weight: 33.3%</div>
+          </div>
+        </div>
+        <div class="metric-list" id="e-metrics"></div>
+      </div>
+
+      <div class="pillar-card s-card">
+        <div class="pillar-header">
+          <div class="pillar-icon">👥</div>
+          <div>
+            <div class="pillar-name">Social</div>
+            <div class="pillar-weight">Weight: 33.3%</div>
+          </div>
+        </div>
+        <div class="metric-list" id="s-metrics"></div>
+      </div>
+
+      <div class="pillar-card g-card">
+        <div class="pillar-header">
+          <div class="pillar-icon">🏛️</div>
+          <div>
+            <div class="pillar-name">Governance</div>
+            <div class="pillar-weight">Weight: 33.3%</div>
+          </div>
+        </div>
+        <div class="metric-list" id="g-metrics"></div>
+      </div>
+
+    </div>
+
+    <!-- COMPANY SUMMARIES -->
+    <div class="summary-section">
+      <div class="section-label">AI-Generated Company Summaries</div>
+      <div class="company-tabs" id="company-tabs"></div>
+      <div class="company-summary-box" id="company-summary-box">
+        Loading...
+      </div>
+    </div>
+
+    <!-- METRICS TABLE -->
+    <div class="metrics-section">
+      <div class="section-label">Full Metrics Table — All Companies × All Years</div>
+      <div class="table-wrapper">
+        <table id="metrics-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BOTTOM CTA -->
+    <div class="bottom-cta">
+      <button class="btn-exit-lg" onclick="exitToHome()">✕ &nbsp; End Analysis</button>
+      <button class="btn-new" onclick="newAnalysis()">↩ &nbsp; New Analysis</button>
+    </div>
+
+  </main>
+
+  <script src="js/results.js"></script>
+
+</body>
+</html>
