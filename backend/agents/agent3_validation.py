@@ -1,7 +1,4 @@
-# backend/agents/agent3_validation.py
 # Agent 3 — LOWESS Smoothing + Exponentially Weighted Regression + Adaptive Validation
-# NOTE: CRISIL ESG scores are 0-100 where HIGHER = BETTER
-# (opposite of Sustainalytics where lower = better risk)
 
 import numpy as np
 import pandas as pd
@@ -20,9 +17,7 @@ SCORE_KEYS = ["E", "S", "G", "Total"]
 class ValidationAgent:
     """
     Agent 3 — LOWESS + weighted regression + adaptive forward validation.
-
     CRISIL scoring: 0-100, higher = better ESG performance.
-
     Input:  agent1_result dict from Agent 1
     Output: dict keyed by ticker with trend, validation_table, lowess_yearly
     """
@@ -53,7 +48,11 @@ class ValidationAgent:
         trend = self._build_trend_summary(regression_coeffs, lowess_yearly, year_range, use_fallback)
 
         validation_table = self._run_validation(
-            validation_years, regression_coeffs, lowess_yearly, val_df, yearly_raw
+            [2025],  
+            regression_coeffs, 
+            lowess_yearly, 
+            val_df, 
+            yearly_raw
         )
 
         trend["trend_classification"] = self._classify_trend(validation_table)
@@ -156,6 +155,13 @@ class ValidationAgent:
         return round(float(c["slope"] * (year - c["t_min"]) + c["intercept"]), 2)
 
     def _run_validation(self, validation_years, regression_coeffs, lowess_yearly, val_df, yearly_raw):
+        """
+        Project scores for validation_years (e.g., [2025]) and compare to actual 2025 scores.
+        Uses:
+        - regression_coeffs: trained on training years (2020-2024)
+        - val_df: monthly validation data for 2025
+        - yearly_raw: yearly aggregated data including 2025
+        """
         table = []
 
         for yr in validation_years:
@@ -173,6 +179,7 @@ class ValidationAgent:
                         act = round(float(np.mean(yr_vals)), 2)
                 actual[key] = act
 
+                # COMPUTE DELTA (error)
                 if proj is not None and act is not None:
                     d = round(abs(proj - act), 2)
                     delta[key] = d
@@ -180,6 +187,7 @@ class ValidationAgent:
                 else:
                     delta[key] = None
 
+            # Skip if no actual data for this year
             if all(v is None for v in actual.values()):
                 continue
 
@@ -189,7 +197,6 @@ class ValidationAgent:
                 "actual":    actual,
                 "delta":     delta,
                 "status":    self._worst_status(statuses),
-                # CRISIL: higher = better, so actual > projected = outperforming
                 "direction": self._classify_direction(projected.get("Total"), actual.get("Total")),
             })
 
@@ -211,7 +218,6 @@ class ValidationAgent:
     def _classify_direction(self, projected, actual):
         if projected is None or actual is None:
             return "N/A"
-        # CRISIL: higher score = better, so actual > projected = outperforming
         if actual > projected:
             return "Outperforming"
         elif actual < projected:

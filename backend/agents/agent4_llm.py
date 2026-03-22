@@ -5,10 +5,13 @@
 import json
 import os
 import time
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from a .env file
-load_dotenv()
+# Load environment variables - go up 2 levels from agent4_llm.py to project root
+env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(env_path)
+
 from groq import Groq
 
 from config.prompts import (
@@ -21,7 +24,7 @@ from config.prompts import (
 )
 from config.thresholds import CONFIDENCE_COMMENDATORY, CONFIDENCE_BALANCED
 
-MODEL      = "llama3-70b-8192"
+MODEL      = "llama-3.3-70b-versatile"
 TEMP       = 0.3
 MAX_TOKENS = 1000
 RATE_LIMIT_SLEEP_THRESHOLD = 28
@@ -41,25 +44,68 @@ class LLMAgent:
     """
 
     def __init__(self):
+        # ═══════════════════════════════════════════════════════════════════
+        # DEBUG: Verify API key is loaded
+        # ═══════════════════════════════════════════════════════════════════
+        api_key = os.getenv("GROQ_API_KEY")
         
-        self._client     = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        print("\n" + "="*70)
+        print("AGENT 4: LLM PIPELINE INITIALIZATION")
+        print("="*70)
+        print(f"Looking for .env at: {env_path}")
+        print(f".env file exists: {env_path.exists()}")
+        
+        if not api_key:
+            print("❌ ERROR: GROQ_API_KEY not found in environment variables")
+            print("\nTroubleshooting steps:")
+            print("1. Create a .env file in your project root directory")
+            print("2. Add this line: GROQ_API_KEY=your_actual_groq_api_key")
+            print("3. Get your API key from: https://console.groq.com/keys")
+            print(f"4. Expected .env location: {env_path}")
+            print("="*70 + "\n")
+            raise ValueError("GROQ_API_KEY missing - add it to .env file")
+        
+        # Mask the API key for security (show first 10 and last 4 chars)
+        masked_key = f"{api_key[:10]}...{api_key[-4:]}" if len(api_key) > 14 else "***"
+        print(f"✅ GROQ_API_KEY loaded successfully: {masked_key}")
+        print(f"✅ Using model: {MODEL}")
+        print("="*70 + "\n")
+        
+        self._client     = Groq(api_key=api_key)
         self._call_count = 0
 
     def run(self, companies, agent1_result, agent2_result, agent3_result):
         result = {}
+        
+        print("\n" + "="*70)
+        print(f"AGENT 4: Processing {len(companies)} companies")
+        print("="*70)
 
         for ticker in companies:
+            print(f"\n{'─'*70}")
+            print(f"Processing: {ticker}")
+            print(f"{'─'*70}")
+            
             a1 = agent1_result.get(ticker, {})
             a2 = agent2_result.get(ticker, {})
             a3 = agent3_result.get(ticker, {})
 
             if not a1.get("found", False):
+                print(f"⚠️  {ticker}: No data found in Agent 1, using fallback")
                 result[ticker] = self._fallback_company(ticker, "not_found")
                 continue
 
             result[ticker] = self._run_company_pipeline(ticker, a1, a2, a3)
 
+        print(f"\n{'='*70}")
+        print("SYNTHESIS: Generating final verdict")
+        print(f"{'='*70}")
         result["verdict"] = self._run_synthesis(companies, result, agent1_result)
+        
+        print(f"\n{'='*70}")
+        print("AGENT 4: Pipeline Complete")
+        print(f"{'='*70}\n")
+        
         return result
 
     # ── PER-COMPANY PIPELINE ──────────────────────────────────────────────────
@@ -73,7 +119,12 @@ class LLMAgent:
         latest_year  = max(yearly.keys()) if yearly else None
         latest_scores = yearly.get(latest_year, {}) if latest_year else {}
 
+        print(f"Company: {meta.get('company_name', ticker)}")
+        print(f"News chunks available: {len(rag)}")
+        print(f"Latest ESG score: {latest_scores.get('Total', 'N/A')}")
+
         # ── CALL 1: NEWS INTELLIGENCE ─────────────────────────────────────────
+        print(f"\n  → Call 1: News Intelligence Analysis")
         call1_prompt = NEWS_INTELLIGENCE_PROMPT.format(
             company_name=meta.get("company_name", ticker),
             ticker=ticker,
@@ -86,9 +137,12 @@ class LLMAgent:
         )
         call1_result, fallback1 = self._call_llm_json(call1_prompt, ticker, "call1")
         if not call1_result:
+            print(f"  ❌ Call 1 failed, using fallback")
             return self._fallback_company(ticker, "call1_failed")
+        print(f"  ✅ Call 1 successful: {call1_result.get('overall_news_sentiment', 'N/A')} sentiment")
 
         # ── CALL 2: CREDIBILITY VALIDATION ───────────────────────────────────
+        print(f"  → Call 2: Credibility Validation")
         call2_prompt = CREDIBILITY_VALIDATION_PROMPT.format(
             company_name=meta.get("company_name", ticker),
             ticker=ticker,
@@ -103,13 +157,23 @@ class LLMAgent:
         )
         call2_result, fallback2 = self._call_llm_json(call2_prompt, ticker, "call2")
         if not call2_result:
+            print(f"  ❌ Call 2 failed, using fallback")
             return self._fallback_company(ticker, "call2_failed", call1_result)
 
         confidence = call2_result.get("confidence_score", 50)
+        print(f"  ✅ Call 2 successful: Confidence={confidence}, Verdict={call2_result.get('credibility_verdict', 'N/A')}")
 
         # ── CALL 3: CONDITIONAL NARRATIVE ────────────────────────────────────
         investor_signal    = self._derive_signal(confidence, trend)
         narrative_template = self._select_narrative_template(confidence)
+        
+        template_name = {
+            NARRATIVE_COMMENDATORY_PROMPT: "Commendatory",
+            NARRATIVE_BALANCED_PROMPT: "Balanced",
+            NARRATIVE_CAUTIONARY_PROMPT: "Cautionary"
+        }.get(narrative_template, "Unknown")
+        
+        print(f"  → Call 3: {template_name} Narrative (confidence={confidence}, signal={investor_signal})")
 
         call3_prompt = narrative_template.format(
             company_name=meta.get("company_name", ticker),
@@ -125,7 +189,9 @@ class LLMAgent:
         )
         call3_result, fallback3 = self._call_llm_json(call3_prompt, ticker, "call3")
         if not call3_result:
+            print(f"  ❌ Call 3 failed, using fallback")
             return self._fallback_company(ticker, "call3_failed", call1_result, call2_result)
+        print(f"  ✅ Call 3 successful: Narrative generated ({len(call3_result.get('narrative', ''))} chars)")
 
         return {
             "news_findings":   call1_result,
@@ -165,9 +231,11 @@ class LLMAgent:
             company_summaries="\n\n".join(summaries),
         )
 
+        print(f"  → Generating comparative verdict for {len(companies)} companies")
         verdict_result, _ = self._call_llm_json(prompt, "synthesis", "verdict")
 
         if not verdict_result:
+            print(f"  ❌ Synthesis failed, using fallback verdict")
             return {
                 "winner":        companies[0],
                 "winner_name":   companies[0],
@@ -176,16 +244,24 @@ class LLMAgent:
                 "most_improved": companies[0],
                 "biggest_risk":  companies[-1],
             }
-
+        
+        print(f"  ✅ Synthesis successful: Winner={verdict_result.get('winner', 'N/A')}")
         return verdict_result
 
     # ── LLM CALL HELPER ───────────────────────────────────────────────────────
 
     def _call_llm_json(self, prompt, ticker, call_label):
+        """
+        Call Groq LLM API and return parsed JSON response.
+        
+        Returns:
+            tuple: (parsed_json_dict, fallback_used_bool)
+        """
         self._rate_limit_check()
 
         for attempt in range(2):
             try:
+                # Make API call
                 response = self._client.chat.completions.create(
                     model=MODEL,
                     messages=[{"role": "user", "content": prompt}],
@@ -202,33 +278,57 @@ class LLMAgent:
                         text = text[4:]
                 text = text.strip()
 
-                return json.loads(text), False
+                # Parse JSON
+                parsed = json.loads(text)
+                return parsed, False
 
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                print(f"    ⚠️  JSON parsing error on attempt {attempt + 1}/2")
+                print(f"    Error: {str(e)[:100]}")
+                
                 if attempt == 0:
+                    # Retry with clearer instructions
                     prompt = (
                         "Your previous response was not valid JSON. "
                         "Return ONLY a valid JSON object with no preamble, "
                         f"no markdown, no explanation.\n\n{prompt}"
                     )
+                    print(f"    → Retrying with stricter prompt...")
                     continue
-                return None, True
+                else:
+                    print(f"    ❌ Failed to parse JSON after 2 attempts")
+                    return None, True
 
-            except Exception:
-                return None, True
+            except Exception as e:
+                print(f"    ❌ LLM API call failed on attempt {attempt + 1}/2")
+                print(f"    Error type: {type(e).__name__}")
+                print(f"    Error message: {str(e)[:200]}")
+                
+                # Don't retry on API errors (rate limits, auth failures, etc.)
+                if attempt == 1 or "rate" in str(e).lower() or "auth" in str(e).lower():
+                    return None, True
+                
+                # Wait before retry
+                time.sleep(2)
+                continue
 
         return None, True
 
     def _rate_limit_check(self):
+        """Pause execution if approaching rate limits."""
         if self._call_count >= RATE_LIMIT_SLEEP_THRESHOLD:
+            print(f"\n  ⏸️  Rate limit threshold reached ({RATE_LIMIT_SLEEP_THRESHOLD} calls), sleeping 60s...")
             time.sleep(60)
             self._call_count = 0
+            print(f"  ▶️  Resuming...\n")
 
     # ── SIGNAL AND TEMPLATE SELECTION ────────────────────────────────────────
 
     def _derive_signal(self, confidence, trend):
         """
         CRISIL: higher score = better, positive slope = improving.
+        
+        Returns: "BUY", "HOLD", "CAUTION", or "AVOID"
         """
         direction = trend.get("Total", {}).get("direction", "worsening")
         if confidence >= CONFIDENCE_COMMENDATORY and direction == "improving":
@@ -241,6 +341,7 @@ class LLMAgent:
             return "AVOID"
 
     def _select_narrative_template(self, confidence):
+        """Select narrative template based on confidence score."""
         if confidence >= CONFIDENCE_COMMENDATORY:
             return NARRATIVE_COMMENDATORY_PROMPT
         elif confidence >= CONFIDENCE_BALANCED:
@@ -257,7 +358,7 @@ class LLMAgent:
                 f"  {yr}: E={s.get('E','N/A')} S={s.get('S','N/A')} "
                 f"G={s.get('G','N/A')} Total={s.get('Total','N/A')}"
             )
-        return "\n".join(lines)
+        return "\n".join(lines) if lines else "No yearly scores available"
 
     def _format_regression(self, trend):
         lines = []
@@ -267,7 +368,7 @@ class LLMAgent:
                 f"  {key}: slope={t.get('slope','N/A')} "
                 f"r2={t.get('r2','N/A')} direction={t.get('direction','N/A')}"
             )
-        return "\n".join(lines)
+        return "\n".join(lines) if lines else "No trend data available"
 
     def _format_validation_table(self, table):
         if not table:
@@ -303,6 +404,7 @@ class LLMAgent:
     # ── FALLBACK ──────────────────────────────────────────────────────────────
 
     def _fallback_company(self, ticker, reason, call1=None, call2=None):
+        """Generate fallback response when LLM calls fail."""
         return {
             "news_findings": call1 or {
                 "positive_findings":      [],
