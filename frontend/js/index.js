@@ -2,7 +2,7 @@ const API_BASE = "http://localhost:8000";
 
 // ── YEAR RANGES ─────────────────────────────────────────────────────────────
 const YEAR_RANGES = [
-  { label: '2022 – 2024', years: [2022, 2023, 2024] },
+  { label: '2022 – 2024\n Validates for: 2025', years: [2022, 2023, 2024] },
 ];
 
 // ── STATE ───────────────────────────────────────────────────────────────────
@@ -20,6 +20,7 @@ async function initDropdowns() {
     const res       = await fetch(`${API_BASE}/companies`);
     const companies = await res.json();
 
+    opts.innerHTML = ''; // Clear loading message
     companies.forEach(c => {
       const div       = document.createElement('div');
       div.className   = 'dropdown-option';
@@ -35,6 +36,7 @@ async function initDropdowns() {
 
   // ── YEAR RANGES ───────────────────────────────────────────────────────────
   const yopts = document.getElementById('year-options');
+  yopts.innerHTML = ''; // Clear
   YEAR_RANGES.forEach((r, i) => {
     const div       = document.createElement('div');
     div.className   = 'dropdown-option';
@@ -49,16 +51,26 @@ async function initDropdowns() {
 function toggleDropdown(type) {
   const dd      = document.getElementById(`${type}-dropdown`);
   const trigger = document.getElementById(`${type}-trigger`);
+  
+  if (!dd || !trigger) return;
+
   const isOpen  = dd.classList.contains('open');
+  
+  // Close all others
   document.querySelectorAll('.multiselect-dropdown').forEach(d => d.classList.remove('open'));
   document.querySelectorAll('.multiselect-trigger').forEach(t => t.classList.remove('open'));
+  
   if (!isOpen) {
     dd.classList.add('open');
     trigger.classList.add('open');
-    if (type === 'company') document.getElementById('company-search').focus();
+    if (type === 'company') {
+        const search = document.getElementById('company-search');
+        if(search) search.focus();
+    }
   }
 }
 
+// Close when clicking outside
 document.addEventListener('click', e => {
   if (!e.target.closest('.multiselect-wrapper')) {
     document.querySelectorAll('.multiselect-dropdown').forEach(d => d.classList.remove('open'));
@@ -77,11 +89,13 @@ function toggleCompany(ticker, name, el) {
     selectedCompanies.push({ ticker, name });
     el.classList.add('selected');
   }
+  
   document.querySelectorAll('#company-options .dropdown-option').forEach(opt => {
     if (!opt.classList.contains('selected')) {
       opt.classList.toggle('disabled', selectedCompanies.length >= 5);
     }
   });
+  
   renderCompanyTags();
   updateSummary();
   updateRunButton();
@@ -90,13 +104,18 @@ function toggleCompany(ticker, name, el) {
 function renderCompanyTags() {
   const container   = document.getElementById('company-tags');
   const placeholder = document.getElementById('company-placeholder');
+  if(!container) return;
+  
   container.innerHTML = '';
   if (selectedCompanies.length === 0) {
-    container.appendChild(placeholder);
-    placeholder.style.display = '';
+    if(placeholder) {
+        container.appendChild(placeholder);
+        placeholder.style.display = '';
+    }
     return;
   }
-  placeholder.style.display = 'none';
+  if(placeholder) placeholder.style.display = 'none';
+  
   selectedCompanies.forEach(c => {
     const tag       = document.createElement('div');
     tag.className   = 'tag';
@@ -106,14 +125,16 @@ function renderCompanyTags() {
 }
 
 function removeCompany(ticker, event) {
-  event.stopPropagation();
+  if(event) event.stopPropagation();
   const el  = document.querySelector(`#company-options .dropdown-option[data-ticker="${ticker}"]`);
   const idx = selectedCompanies.findIndex(c => c.ticker === ticker);
   if (idx > -1) selectedCompanies.splice(idx, 1);
   if (el) el.classList.remove('selected');
+  
   document.querySelectorAll('#company-options .dropdown-option').forEach(opt => {
     if (!opt.classList.contains('selected')) opt.classList.remove('disabled');
   });
+  
   renderCompanyTags();
   updateSummary();
   updateRunButton();
@@ -127,8 +148,10 @@ function selectYearRange(idx, el) {
 
   const container   = document.getElementById('year-tags');
   const placeholder = document.getElementById('year-placeholder');
+  
   container.innerHTML     = '';
-  placeholder.style.display = 'none';
+  if(placeholder) placeholder.style.display = 'none';
+  
   const tag     = document.createElement('div');
   tag.className = 'tag';
   tag.innerHTML = `${selectedYearRange.label} <span class="tag-remove" onclick="clearYear(event)">×</span>`;
@@ -142,14 +165,17 @@ function selectYearRange(idx, el) {
 }
 
 function clearYear(event) {
-  event.stopPropagation();
+  if(event) event.stopPropagation();
   selectedYearRange = null;
   document.querySelectorAll('#year-options .dropdown-option').forEach(o => o.classList.remove('selected'));
   const container   = document.getElementById('year-tags');
   const placeholder = document.getElementById('year-placeholder');
+  
   container.innerHTML = '';
-  container.appendChild(placeholder);
-  placeholder.style.display = '';
+  if(placeholder) {
+    container.appendChild(placeholder);
+    placeholder.style.display = '';
+  }
   updateSummary();
   updateRunButton();
 }
@@ -158,8 +184,9 @@ function clearYear(event) {
 function filterOptions(type) {
   const q = document.getElementById(`${type}-search`).value.toLowerCase();
   document.querySelectorAll(`#${type}-options .dropdown-option`).forEach(opt => {
-    const match = (opt.dataset.name   && opt.dataset.name.includes(q)) ||
-                  (opt.dataset.ticker && opt.dataset.ticker.toLowerCase().includes(q));
+    const name = opt.dataset.name || "";
+    const ticker = opt.dataset.ticker || "";
+    const match = name.includes(q) || ticker.toLowerCase().includes(q);
     opt.style.display = match ? '' : 'none';
   });
 }
@@ -167,6 +194,8 @@ function filterOptions(type) {
 // ── SUMMARY ─────────────────────────────────────────────────────────────────
 function updateSummary() {
   const el = document.getElementById('selection-summary');
+  if(!el) return;
+
   if (selectedCompanies.length === 0 && !selectedYearRange) {
     el.innerHTML = `<span class="summary-prefix">awaiting selection —</span> <span style="color:var(--text-dim);font-size:0.75rem;font-family:var(--mono)">choose companies and year range to begin</span>`;
     return;
@@ -183,21 +212,23 @@ function updateSummary() {
 }
 
 function updateRunButton() {
-  document.getElementById('btn-run').disabled = !(selectedCompanies.length >= 1 && selectedYearRange);
+  const btn = document.getElementById('btn-run');
+  if(btn) btn.disabled = !(selectedCompanies.length >= 1 && selectedYearRange);
 }
 
 // ── STEP UI HELPERS ──────────────────────────────────────────────────────────
 const STEPS = [
   { id: 1, badge: 'RUNNING',    doneBadge: 'DONE', detail: () => `Orchestrator initialized — session started` },
-  { id: 2, badge: 'FETCHING',   doneBadge: 'DONE', detail: () => `Loading CRISIL ESG data for <span>${selectedCompanies.length}</span> companies` },
+  { id: 2, badge: 'FETCHING',   doneBadge: 'DONE', detail: () => `Loading CRISIL ESG data` },
   { id: 3, badge: 'INDEXING',   doneBadge: 'DONE', detail: () => `Fetching live news + building FAISS index` },
   { id: 4, badge: 'COMPUTING',  doneBadge: 'DONE', detail: () => `LOWESS smoothing + adaptive forward validation` },
-  { id: 5, badge: 'GENERATING', doneBadge: 'DONE', detail: () => `Groq LLaMA3-70B — <span>${selectedCompanies.length * 3 + 1}</span> calls` },
+  { id: 5, badge: 'GENERATING', doneBadge: 'DONE', detail: () => `LLM Processing — Agent Narratives` },
   { id: 6, badge: 'BUILDING',   doneBadge: 'DONE', detail: () => `Generating Excel workbooks + charts` },
 ];
 
 function log(msg, type = 'info') {
   const terminal = document.getElementById('terminal-log');
+  if(!terminal) return;
   const now      = new Date();
   const time     = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
   const line     = document.createElement('div');
@@ -212,31 +243,29 @@ function activateStep(stepNum, progress) {
   const badge    = document.getElementById(`step-${stepNum}-badge`);
   const detail   = document.getElementById(`step-${stepNum}-detail`);
   const stepData = STEPS[stepNum - 1];
-  if (!el) return;
+  if (!el || !badge) return;
   el.classList.add('active');
-  badge.textContent        = stepData.badge;
-  badge.style.borderColor  = 'var(--amber)';
-  badge.style.color        = 'var(--amber)';
-  detail.innerHTML         = stepData.detail();
-  document.getElementById('progress-fill').style.width = progress + '%';
+  badge.textContent         = stepData.badge;
+  badge.style.borderColor   = 'var(--amber)';
+  badge.style.color         = 'var(--amber)';
+  if(detail) detail.innerHTML = stepData.detail();
+  const fill = document.getElementById('progress-fill');
+  if(fill) fill.style.width = progress + '%';
 }
 
 function completeStep(stepNum) {
   const el       = document.getElementById(`step-${stepNum}`);
   const badge    = document.getElementById(`step-${stepNum}-badge`);
-  const stepData = STEPS[stepNum - 1];
-  if (!el) return;
+  if (!el || !badge) return;
   el.classList.remove('active');
   el.classList.add('done');
-  badge.textContent       = stepData.doneBadge;
+  badge.textContent       = 'DONE';
   badge.style.borderColor = 'var(--green-dim)';
   badge.style.color       = 'var(--green)';
-  badge.style.background  = 'var(--green-glow)';
 }
 
 // ── ANALYSIS PIPELINE ────────────────────────────────────────────────────────
 async function startAnalysis() {
-  // Switch views
   document.getElementById('input-panel').style.display = 'none';
   const section = document.getElementById('analysis-section');
   section.style.display = 'block';
@@ -244,7 +273,6 @@ async function startAnalysis() {
   log('Analysis pipeline starting...', 'info');
   setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
 
-  // ── POST /analyze ─────────────────────────────────────────────────────────
   let job_id;
   try {
     const res  = await fetch(`${API_BASE}/analyze`, {
@@ -259,7 +287,7 @@ async function startAnalysis() {
     if (!res.ok) {
       const err = await res.json();
       log(`[ERROR] ${JSON.stringify(err.detail)}`, 'error');
-      showError('Failed to start analysis. Check backend logs.');
+      showError('Failed to start analysis.');
       return;
     }
 
@@ -269,19 +297,16 @@ async function startAnalysis() {
     log(`[MCP] Job started — ID: ${job_id}`, 'ok');
   } catch (err) {
     log(`[ERROR] Cannot reach backend: ${err.message}`, 'error');
-    showError('Backend unreachable. Is uvicorn running on port 8000?');
+    showError('Backend unreachable.');
     return;
   }
 
-  // ── POLL /status/{job_id} every 2 seconds ─────────────────────────────────
   let lastStep = 0;
-
   pollInterval = setInterval(async () => {
     try {
       const res    = await fetch(`${API_BASE}/status/${job_id}`);
       const status = await res.json();
 
-      // Update step UI when step advances
       if (status.step !== lastStep) {
         if (lastStep > 0) completeStep(lastStep);
         const progressMap = { 1: 10, 2: 25, 3: 45, 4: 62, 5: 80, 6: 93 };
@@ -289,44 +314,41 @@ async function startAnalysis() {
         lastStep = status.step;
       }
 
-      // Append log message
       if (status.log) log(status.log, 'info');
 
-      // ── DONE ────────────────────────────────────────────────────────────
       if (status.status === 'done') {
         clearInterval(pollInterval);
         completeStep(lastStep);
         document.getElementById('progress-fill').style.width = '100%';
         document.getElementById('status-dot').className      = 'status-dot done';
         document.getElementById('status-text').textContent   = 'Analysis Complete';
-        document.getElementById('status-text').style.color   = 'var(--green)';
         document.getElementById('btn-results').disabled      = false;
-        analysisComplete = true;
-        log('[DONE] Analysis complete — results ready', 'ok');
-
-        // Save to sessionStorage for results page
-        sessionStorage.setItem('job_id',        job_id);
+        
+        // --- CRITICAL FIX HERE ---
+        sessionStorage.setItem('esg_job_id', job_id); // FIXED KEY
         sessionStorage.setItem('esg_companies', JSON.stringify(selectedCompanies));
-        sessionStorage.setItem('esg_years',     JSON.stringify(selectedYearRange));
+        sessionStorage.setItem('esg_years', JSON.stringify(selectedYearRange));
+        log('[DONE] Analysis complete', 'ok');
       }
 
-      // ── ERROR ────────────────────────────────────────────────────────────
       if (status.status === 'error') {
         clearInterval(pollInterval);
-        log(`[ERROR] ${status.error_msg || 'Pipeline failed'}`, 'error');
-        showError(status.error_msg || 'Pipeline failed. Check backend logs.');
+        showError(status.error_msg || 'Pipeline failed');
       }
-
     } catch (err) {
-      log(`[ERROR] Polling failed: ${err.message}`, 'error');
+      console.error('Polling failed');
     }
   }, 2000);
 }
 
 function showError(msg) {
-  document.getElementById('status-dot').className    = 'status-dot error';
-  document.getElementById('status-text').textContent = 'Error';
-  document.getElementById('status-text').style.color = 'var(--red)';
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  if(dot) dot.className = 'status-dot error';
+  if(txt) {
+    txt.textContent = 'Error';
+    txt.style.color = 'var(--red)';
+  }
   log(`[ERROR] ${msg}`, 'error');
 }
 
@@ -334,5 +356,5 @@ function goToResults() {
   window.location.href = 'results.html';
 }
 
-// ── BOOT ─────────────────────────────────────────────────────────────────────
+// Start
 initDropdowns();

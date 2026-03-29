@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent.parent/".env"
 load_dotenv(env_path)
 
-MODEL      = "llama-3.3-70b-versatile"
+MODEL      = "meta-llama/llama-4-scout-17b-16e-instruct"
 TEMP       = 0.3
 MAX_TOKENS = 1000
 RATE_LIMIT_SLEEP_THRESHOLD = 28

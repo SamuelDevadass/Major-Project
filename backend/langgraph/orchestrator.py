@@ -74,13 +74,25 @@ def _build_results(state: PipelineState) -> dict:
 
     per_company = {}
     for company in companies:
+        a3_data = agent3.get(company, {})
+        val_table = a3_data.get("validation_table", [])
+        latest_val = val_table[-1] if val_table else {}
+        actual_scores = latest_val.get("actual", {})
+        if not actual_scores:
+            # Fallback if Agent 3 didn't find 2025 data
+            yearly = agent1.get(company, {}).get("yearly_scores", {})
+            latest_yr = max(yearly.keys()) if yearly else None
+            actual_scores = yearly.get(latest_yr, {})
+            
         per_company[company] = {
-            "yearly_scores":    agent1.get(company, {}).get("yearly_scores", {}),
+            #"yearly_scores":    agent1.get(company, {}).get("yearly_scores", {}),
+            "yearly_scores":    actual_scores,
             "trend":            agent3.get(company, {}).get("trend", {}),
             "validation_table": agent3.get(company, {}).get("validation_table", []),
             "news_findings":    agent2.get(company, {}).get("news_findings", {}),
             "credibility":      agent4.get(company, {}).get("credibility", {}),
             "narrative":        agent4.get(company, {}).get("narrative", ""),
+            "verdict_label":    agent4.get(company, {}).get("credibility", {}).get("credibility_verdict", "Stable"),
             "key_highlights":   agent4.get(company, {}).get("key_highlights", []),
             "investor_signal":  agent4.get(company, {}).get("investor_signal", "HOLD"),
             "chart_base64":     charts.get(company),
