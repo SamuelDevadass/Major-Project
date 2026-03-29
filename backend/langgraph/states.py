@@ -1,12 +1,26 @@
-# backend/langgraph/states.py
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Annotated
+import operator
+from typing_extensions import TypedDict
+
 from services.job_store import create_job, update_job, complete_job, fail_job
 from services.company_service import get_valid_tickers, get_companies_list
 
+class AgentState(TypedDict):
+    """
+    The schema for the graph state. 
+    Annotated + operator.ior allows agent_results to be merged 
+    automatically as each node returns its piece of the puzzle.
+    """
+    job_id: str
+    input_tickers: List[str]
+    year_range: List[int]
+    companies: List[str]
+    # This merges the dicts from each agent instead of overwriting
+    agent_results: Annotated[Dict[str, Any], operator.ior]
+    status: str
 class PipelineState:
     """
-    Central state object for LangGraph pipeline.
-    Tracks job progress, intermediate agent results, and final outputs.
+    Helper object for orchestrator logic and Job Store interactions.
     """
     def __init__(self, job_id: str, input_tickers: list[str], year_range: list[int]):
         self.job_id = job_id
