@@ -1,8 +1,4 @@
-# backend/config/prompts.py
-# All LLM prompt templates.
-# NOTE: CRISIL ESG scores are 0-100 where HIGHER = BETTER ESG performance.
-
-# ── LLM CALL 1 — NEWS INTELLIGENCE EXTRACTION ────────────────────────────────
+#CRISIL ESG scores are 0-100 where HIGHER = BETTER ESG performance.
 
 NEWS_INTELLIGENCE_PROMPT = """
 You are an ESG analyst. Analyze the following news article excerpts about {company_name} ({ticker}),
@@ -32,8 +28,6 @@ Rules:
 - overall_news_sentiment: must be exactly one of the four options
 - Return JSON only. No preamble, no explanation, no markdown.
 """
-
-# ── LLM CALL 2 — CREDIBILITY VALIDATION ──────────────────────────────────────
 
 CREDIBILITY_VALIDATION_PROMPT = """
 You are an ESG credibility analyst. Assess whether {company_name} ({ticker})'s CRISIL ESG scores

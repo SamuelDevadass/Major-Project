@@ -74,7 +74,7 @@ class ExcelAgent:
 
         # ── FILE 1 ────────────────────────────────────────────────────────────
         file1_path = job_dir / "esg_cross_company.xlsx"
-        self._write_file1(file1_path, companies, agent1_result, year_range, charts_bytes)
+        self._write_file1(file1_path, companies, agent1_result, year_range, validation_years, charts_bytes)
 
         # ── FILE 2 ────────────────────────────────────────────────────────────
         file2_path = job_dir / "esg_per_company.xlsx"
@@ -158,9 +158,8 @@ class ExcelAgent:
 
     # ── FILE 1: CROSS-COMPANY ─────────────────────────────────────────────────
 
-    def _write_file1(self, path, companies, agent1_result, year_range, charts_bytes):
+    def _write_file1(self, path, companies, agent1_result, year_range, validation_years, charts_bytes):        
         wb = xlsxwriter.Workbook(str(path))
-
         hdr_fmt  = wb.add_format({"bold": True, "bg_color": TEAL, "font_color": WHITE,
                                    "border": 1, "align": "center", "font_name": "Arial", "font_size": 11})
         cell_fmt = wb.add_format({"border": 1, "font_name": "Arial", "font_size": 10})
@@ -168,7 +167,8 @@ class ExcelAgent:
         sect_fmt = wb.add_format({"bold": True, "bg_color": TEAL_LIGHT, "font_name": "Arial",
                                    "font_size": 11, "border": 1})
 
-        for yr in year_range:
+        all_years = list(year_range) + list(validation_years)
+        for yr in all_years:
             ws = wb.add_worksheet(str(yr))
             ws.freeze_panes(1, 1)
             ws.set_column(0, 0, 25)
@@ -194,7 +194,7 @@ class ExcelAgent:
                     row += 1
 
         # Sheet 4: Charts
-        chart_ws = wb.add_worksheet("ESG Charts")
+        """chart_ws = wb.add_worksheet("ESG Charts")
         chart_ws.write(0, 0, "CRISIL ESG Trajectory Charts", hdr_fmt)
         row_offset = 2
         for ticker in companies:
@@ -202,7 +202,7 @@ class ExcelAgent:
             if img:
                 chart_ws.insert_image(row_offset, 0, f"chart_{ticker}.png",
                                       {"image_data": io.BytesIO(img), "x_scale": 0.75, "y_scale": 0.75})
-                row_offset += 22
+                row_offset += 22"""
 
         wb.close()
 

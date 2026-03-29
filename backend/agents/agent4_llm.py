@@ -5,24 +5,17 @@
 import json
 import os
 import time
+import re
+from groq import Groq
+from config.thresholds import CONFIDENCE_COMMENDATORY, CONFIDENCE_BALANCED
+from config.prompts import (NEWS_INTELLIGENCE_PROMPT,CREDIBILITY_VALIDATION_PROMPT,
+                            NARRATIVE_COMMENDATORY_PROMPT,NARRATIVE_BALANCED_PROMPT,
+                            NARRATIVE_CAUTIONARY_PROMPT,SYNTHESIS_VERDICT_PROMPT)
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables - go up 2 levels from agent4_llm.py to project root
-env_path = Path(__file__).resolve().parents[2] / ".env"
+env_path = Path(__file__).resolve().parent.parent.parent/".env"
 load_dotenv(env_path)
-
-from groq import Groq
-
-from config.prompts import (
-    NEWS_INTELLIGENCE_PROMPT,
-    CREDIBILITY_VALIDATION_PROMPT,
-    NARRATIVE_COMMENDATORY_PROMPT,
-    NARRATIVE_BALANCED_PROMPT,
-    NARRATIVE_CAUTIONARY_PROMPT,
-    SYNTHESIS_VERDICT_PROMPT,
-)
-from config.thresholds import CONFIDENCE_COMMENDATORY, CONFIDENCE_BALANCED
 
 MODEL      = "llama-3.3-70b-versatile"
 TEMP       = 0.3
@@ -44,16 +37,10 @@ class LLMAgent:
     """
 
     def __init__(self):
-        # ═══════════════════════════════════════════════════════════════════
-        # DEBUG: Verify API key is loaded
-        # ═══════════════════════════════════════════════════════════════════
         api_key = os.getenv("GROQ_API_KEY")
-        
         print("\n" + "="*70)
         print("AGENT 4: LLM PIPELINE INITIALIZATION")
         print("="*70)
-        print(f"Looking for .env at: {env_path}")
-        print(f".env file exists: {env_path.exists()}")
         
         if not api_key:
             print("❌ ERROR: GROQ_API_KEY not found in environment variables")
@@ -65,12 +52,8 @@ class LLMAgent:
             print("="*70 + "\n")
             raise ValueError("GROQ_API_KEY missing - add it to .env file")
         
-        # Mask the API key for security (show first 10 and last 4 chars)
-        masked_key = f"{api_key[:10]}...{api_key[-4:]}" if len(api_key) > 14 else "***"
-        print(f"✅ GROQ_API_KEY loaded successfully: {masked_key}")
+        print(f"✅ GROQ_API_KEY loaded successfully!")
         print(f"✅ Using model: {MODEL}")
-        print("="*70 + "\n")
-        
         self._client     = Groq(api_key=api_key)
         self._call_count = 0
 
@@ -108,7 +91,6 @@ class LLMAgent:
         
         return result
 
-    # ── PER-COMPANY PIPELINE ──────────────────────────────────────────────────
 
     def _run_company_pipeline(self, ticker, a1, a2, a3):
         meta         = a1.get("kaggle_meta", {})
@@ -123,7 +105,6 @@ class LLMAgent:
         print(f"News chunks available: {len(rag)}")
         print(f"Latest ESG score: {latest_scores.get('Total', 'N/A')}")
 
-        # ── CALL 1: NEWS INTELLIGENCE ─────────────────────────────────────────
         print(f"\n  → Call 1: News Intelligence Analysis")
         call1_prompt = NEWS_INTELLIGENCE_PROMPT.format(
             company_name=meta.get("company_name", ticker),
@@ -141,7 +122,6 @@ class LLMAgent:
             return self._fallback_company(ticker, "call1_failed")
         print(f"  ✅ Call 1 successful: {call1_result.get('overall_news_sentiment', 'N/A')} sentiment")
 
-        # ── CALL 2: CREDIBILITY VALIDATION ───────────────────────────────────
         print(f"  → Call 2: Credibility Validation")
         call2_prompt = CREDIBILITY_VALIDATION_PROMPT.format(
             company_name=meta.get("company_name", ticker),
@@ -163,7 +143,6 @@ class LLMAgent:
         confidence = call2_result.get("confidence_score", 50)
         print(f"  ✅ Call 2 successful: Confidence={confidence}, Verdict={call2_result.get('credibility_verdict', 'N/A')}")
 
-        # ── CALL 3: CONDITIONAL NARRATIVE ────────────────────────────────────
         investor_signal    = self._derive_signal(confidence, trend)
         narrative_template = self._select_narrative_template(confidence)
         
@@ -202,7 +181,6 @@ class LLMAgent:
             "llm_fallback":    any([fallback1, fallback2, fallback3]),
         }
 
-    # ── SYNTHESIS VERDICT ─────────────────────────────────────────────────────
 
     def _run_synthesis(self, companies, result, agent1_result):
         summaries = []
@@ -248,7 +226,6 @@ class LLMAgent:
         print(f"  ✅ Synthesis successful: Winner={verdict_result.get('winner', 'N/A')}")
         return verdict_result
 
-    # ── LLM CALL HELPER ───────────────────────────────────────────────────────
 
     def _call_llm_json(self, prompt, ticker, call_label):
         """
@@ -277,8 +254,7 @@ class LLMAgent:
                     if text.startswith("json"):
                         text = text[4:]
                 text = text.strip()
-
-                # Parse JSON
+                text = re.sub(r'[\x00-\x1F]+', ' ', text)
                 parsed = json.loads(text)
                 return parsed, False
 
@@ -322,7 +298,6 @@ class LLMAgent:
             self._call_count = 0
             print(f"  ▶️  Resuming...\n")
 
-    # ── SIGNAL AND TEMPLATE SELECTION ────────────────────────────────────────
 
     def _derive_signal(self, confidence, trend):
         """
@@ -348,7 +323,6 @@ class LLMAgent:
             return NARRATIVE_BALANCED_PROMPT
         return NARRATIVE_CAUTIONARY_PROMPT
 
-    # ── PROMPT FORMATTERS ─────────────────────────────────────────────────────
 
     def _format_yearly_scores(self, yearly):
         lines = []
@@ -401,7 +375,6 @@ class LLMAgent:
             f"Trend: {trend.get('trend_classification','Unknown')}"
         )
 
-    # ── FALLBACK ──────────────────────────────────────────────────────────────
 
     def _fallback_company(self, ticker, reason, call1=None, call2=None):
         """Generate fallback response when LLM calls fail."""
