@@ -13,7 +13,6 @@ from config.prompts import (NEWS_INTELLIGENCE_PROMPT,CREDIBILITY_VALIDATION_PROM
                             NARRATIVE_CAUTIONARY_PROMPT,SYNTHESIS_VERDICT_PROMPT)
 from pathlib import Path
 from dotenv import load_dotenv
-
 env_path = Path(__file__).resolve().parent.parent.parent/".env"
 load_dotenv(env_path)
 
@@ -56,6 +55,8 @@ class LLMAgent:
         print(f"✅ Using model: {MODEL}")
         self._client     = Groq(api_key=api_key)
         self._call_count = 0
+        """super().__init__(name="LLM Agent 4")
+        self.agent = LLMAgent()"""
 
     def run(self, companies, agent1_result, agent2_result, agent3_result):
         result = {}

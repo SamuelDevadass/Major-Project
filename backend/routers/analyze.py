@@ -5,7 +5,8 @@ from pydantic import BaseModel, field_validator
 
 from services.company_service import get_valid_tickers
 from services.job_store import create_job
-from services.pipeline import run_pipeline
+#from services.pipeline import run_pipeline
+from langgraph.orchestrator import run_pipeline
 
 router = APIRouter(tags=["Analysis"])
 
