@@ -5,7 +5,7 @@
 # File 1: esg_cross_company.xlsx (3 year sheets + charts sheet)
 # File 2: esg_per_company.xlsx (1 sheet per company)
 
-import base64
+import base64,json
 import io
 from pathlib import Path
 
@@ -212,6 +212,13 @@ class ExcelAgent:
                      agent4_result, year_range, validation_years, charts_bytes):
         wb = xlsxwriter.Workbook(str(path))
 
+        ref_file = BASE_DIR / "reference_list.json"
+        if ref_file.exists():
+            with open(ref_file, "r", encoding="utf-8") as f:
+                reference_data = json.load(f)
+        else:
+            reference_data = {}
+
         hdr_fmt   = wb.add_format({"bold": True, "bg_color": TEAL, "font_color": WHITE,
                                     "border": 1, "align": "center", "font_name": "Arial", "font_size": 11})
         train_fmt = wb.add_format({"border": 1, "bg_color": WHITE,    "font_name": "Arial", "font_size": 10})
@@ -287,10 +294,40 @@ class ExcelAgent:
 
             row += 1
 
-            # AI Narrative
+            # --- AI Narrative ---
             ws.write(row, 0, "AI Investor Narrative", bold_fmt)
             row += 1
             narrative = a4.get("narrative", "No narrative generated.")
+            
+            # Narrative box (11 rows high)
             ws.merge_range(row, 0, row + 10, len(all_years), narrative, narr_fmt)
+            row += 11 # Move below the narrative
+
+            # --- NEW: SOURCE REFERENCES ---
+            row += 1 # Small gap
+            ws.write(row, 0, "Source References", bold_fmt)
+            row += 1
+            
+            # Fetch the map we passed through Agent 4
+            # --- SOURCE REFERENCES FROM JSON ---
+            company_refs = reference_data.get(ticker, {})
+
+            if company_refs:
+                for key, value in company_refs.items():
+                    ws.write(row, 0, str(key), bold_fmt)
+                    
+                    # If it's a real URL make clickable
+                    if isinstance(value, str) and value.startswith("http"):
+                        ws.write_url(row, 1, value, string="Open Link")
+                    else:
+                        # Otherwise just write text
+                        ws.write(row, 1, str(value))
+                    
+                    row += 1
+            else:
+                ws.write(row, 0, "No references found.", narr_fmt)
+            
+            # Update row counter for next company sheet loop if needed
+            row += 2
 
         wb.close()

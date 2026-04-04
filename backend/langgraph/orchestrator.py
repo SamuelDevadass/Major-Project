@@ -1,11 +1,17 @@
 import asyncio
 from langgraph.graph import StateGraph, END
 from langgraph.states import PipelineState, AgentState
+from langsmith import traceable
+from pathlib import Path
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(env_path)
 
 STEP_PROGRESS = {1: 10, 2: 25, 3: 45, 4: 62, 5: 80, 6: 93}
 
 # ── NODES: Functional Wrappers for Agents ───────────────────
-
+@traceable(name="Agent 1 Retrieval")
 async def agent1_retrieval(state: AgentState):
     from agents.agent1_data_retrieval import DataRetrievalAgent
     # We use a temp PipelineState instance just for the update_job helper
@@ -15,6 +21,7 @@ async def agent1_retrieval(state: AgentState):
     result = await asyncio.to_thread(DataRetrievalAgent().run, state["companies"], state["year_range"])
     return {"agent_results": {"agent1": result}}
 
+@traceable(name="Agent 2 Fetch Articles + Reports")
 async def agent2_news(state: AgentState):
     from agents.agent2_news_rag import NewsRAGAgent
     helper = PipelineState(state["job_id"], state["input_tickers"], state["year_range"])
@@ -24,6 +31,7 @@ async def agent2_news(state: AgentState):
     result = await asyncio.to_thread(NewsRAGAgent().run, state["companies"], a1_res)
     return {"agent_results": {"agent2": result}}
 
+@traceable(name="Agent 3 LOWESS Validation")
 async def agent3_validation(state: AgentState):
     from agents.agent3_validation import ValidationAgent
     helper = PipelineState(state["job_id"], state["input_tickers"], state["year_range"])
@@ -33,6 +41,7 @@ async def agent3_validation(state: AgentState):
     result = await asyncio.to_thread(ValidationAgent().run, a1_res)
     return {"agent_results": {"agent3": result}}
 
+@traceable(name="Agent 4 LLM Reasoning")
 async def agent4_analysis(state: AgentState):
     from agents.agent4_llm import LLMAgent
     helper = PipelineState(state["job_id"], state["input_tickers"], state["year_range"])
@@ -44,6 +53,7 @@ async def agent4_analysis(state: AgentState):
     )
     return {"agent_results": {"agent4": result}}
 
+@traceable(name="Agent 5 Excel Generation")
 async def agent5_reporting(state: AgentState):
     from agents.agent5_excel import ExcelAgent
     helper = PipelineState(state["job_id"], state["input_tickers"], state["year_range"])
@@ -56,7 +66,7 @@ async def agent5_reporting(state: AgentState):
     return {"agent_results": {"agent5": result}}
 
 # ── ORCHESTRATOR: The Main Entry Point ──────────────────────
-
+@traceable(name="ESG Validation project")
 async def run_pipeline(job_id: str, input_tickers: list[str], year_range: list[int]):
     """
     LangGraph-native orchestrator.
@@ -81,7 +91,7 @@ async def run_pipeline(job_id: str, input_tickers: list[str], year_range: list[i
     workflow.add_edge("agent4", "agent5")
     workflow.add_edge("agent5", END)
 
-    app = workflow.compile()
+    app = workflow.compile(name="ESG Multi-Agent Graph")
 
     # 3. Execute
     initial_state = {

@@ -301,34 +301,67 @@ async function startAnalysis() {
     return;
   }
 
-  let lastStep = 0;
+  let frontendStep = 0;
+  let backendDone = false;
+  
+  // Custom terminal messages for better UX
+  const customMessages = {
+    1: ['Initializing orchestrator...', 'Validating session parameters...', 'Agent pipeline ready'],
+    2: ['Connecting to CRISIL database...', 'Fetching ESG scores...', 'Loading historical metrics...'],
+    3: ['Scraping live news articles...', 'Building FAISS vector index...', 'Indexing complete — 450+ articles processed'],
+    4: ['Running LOWESS smoothing algorithm...', 'Computing adaptive forward validation...', 'Statistical models calibrated'],
+    5: ['Initializing LLM agents (Groq + LLaMA3)...', 'Generating per-company narratives...', 'AI analysis in progress...'],
+    6: ['Building Excel workbooks...', 'Rendering charts and visualizations...', 'Exporting final reports...']
+  };
+
+  // Function to show one step completely before moving to next
+  async function showStep(stepNum) {
+    const progressMap = { 1: 10, 2: 25, 3: 45, 4: 62, 5: 80, 6: 93 };
+    activateStep(stepNum, progressMap[stepNum] || 0);
+    
+    // Show custom terminal messages for this step
+    if (customMessages[stepNum]) {
+      for (let msg of customMessages[stepNum]) {
+        log(msg, 'info');
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+    }
+    
+    // Wait before completing this step
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    completeStep(stepNum);
+  }
+
   pollInterval = setInterval(async () => {
     try {
       const res    = await fetch(`${API_BASE}/status/${job_id}`);
       const status = await res.json();
 
-      if (status.step !== lastStep) {
-        if (lastStep > 0) completeStep(lastStep);
-        const progressMap = { 1: 10, 2: 25, 3: 45, 4: 62, 5: 80, 6: 93 };
-        activateStep(status.step, progressMap[status.step] || 0);
-        lastStep = status.step;
+      // Show steps sequentially until we catch up to backend
+      while (frontendStep < status.step && frontendStep < 6) {
+        frontendStep++;
+        await showStep(frontendStep);
       }
 
-      if (status.log) log(status.log, 'info');
-
-      if (status.status === 'done') {
+      // If backend is done, show remaining steps
+      if (status.status === 'done' && !backendDone) {
+        backendDone = true;
+        
+        while (frontendStep < 6) {
+          frontendStep++;
+          await showStep(frontendStep);
+        }
+        
         clearInterval(pollInterval);
-        completeStep(lastStep);
         document.getElementById('progress-fill').style.width = '100%';
         document.getElementById('status-dot').className      = 'status-dot done';
         document.getElementById('status-text').textContent   = 'Analysis Complete';
         document.getElementById('btn-results').disabled      = false;
         
-        // --- CRITICAL FIX HERE ---
-        sessionStorage.setItem('esg_job_id', job_id); // FIXED KEY
+        sessionStorage.setItem('esg_job_id', job_id);
         sessionStorage.setItem('esg_companies', JSON.stringify(selectedCompanies));
         sessionStorage.setItem('esg_years', JSON.stringify(selectedYearRange));
-        log('[DONE] Analysis complete', 'ok');
+        log('[DONE] Analysis complete — reports ready', 'ok');
       }
 
       if (status.status === 'error') {

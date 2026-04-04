@@ -28,176 +28,154 @@ Rules:
 - overall_news_sentiment: must be exactly one of the four options
 - Return JSON only. No preamble, no explanation, no markdown.
 """
+# --- AGENT 2: BRSR EXTRACTION PROMPT ---
+# Goal: Reduce 50+ pages of Docling Markdown into a high-density JSON fact sheet.
+BRSR_EXTRACTION_PROMPT = """
+You are a specialized ESG Data Extractor. 
+Your task is to extract specific regulatory data from the provided BRSR Markdown text.
+
+INSTRUCTIONS:
+1. Extract the following metrics: 
+   - Scope 1 and Scope 2 Emissions (MTCO2e).
+   - Energy Intensity (per rupee of turnover).
+   - Water consumption and recycling %.
+   - Employee Gender Diversity (Workforce and Board).
+   - Safety: Number of fatalities or high-consequence injuries.
+2. Use the source tag [B1] for EVERY value extracted.
+3. If a value is missing, write "Not Disclosed".
+4. Return the output in a clean, structured JSON format.
+
+CONTEXT FROM BRSR [B1]:
+{context}
+
+RETURN ONLY JSON.
+"""
 
 CREDIBILITY_VALIDATION_PROMPT = """
 You are an ESG credibility analyst. Assess whether {company_name} ({ticker})'s CRISIL ESG scores
-are credible based on quantitative trends and qualitative news evidence.
+are credible based on quantitative trends, official BRSR disclosures, and qualitative news.
 
-IMPORTANT: CRISIL scores are on a scale of 0-100 where HIGHER scores mean BETTER ESG performance.
-A positive regression slope means ESG performance is IMPROVING.
+IMPORTANT: 
+- CRISIL scores (0-100): Higher = Better.
+- BRSR Data [B1]: Official regulatory disclosures (High Truth).
+- News Intelligence [N1, N2...]: Public sentiment and controversies (High Recency).
 
-YEARLY CRISIL ESG SCORES (0-100, higher = better):
-{yearly_scores}
+YEARLY CRISIL ESG SCORES: {yearly_scores}
+REGRESSION SUMMARY: {regression_summary}
 
-REGRESSION ANALYSIS (positive slope = improving trend):
-{regression_summary}
+OFFICIAL BRSR AUDIT [B1]: 
+{official_fact_sheet}
 
-ADAPTIVE FORWARD VALIDATION:
-{validation_table}
-
-CRISIL RATING AND CATEGORY:
-{crisil_rating}
-
-NEWS INTELLIGENCE (from previous analysis):
-- Positive Findings: {positive_findings}
-- Negative Findings: {negative_findings}
+NEWS INTELLIGENCE:
+- Findings: {positive_findings} | {negative_findings}
 - Governance Flags: {governance_flags}
-- Overall Sentiment: {overall_news_sentiment}
 
-Return ONLY a valid JSON object with exactly these keys:
+Return ONLY a valid JSON object:
 {{
-  "confidence_score": <integer 0-100>,
+  "confidence_score": <0-100>,
   "credibility_verdict": "<good|stable|bad|washing>",
-  "supporting_evidence": ["<evidence 1>", "<evidence 2>"],
-  "contradicting_evidence": ["<evidence 1>", "<evidence 2>"],
+  "supporting_evidence": ["<evidence with [B1] or [N1]>"],
+  "contradicting_evidence": ["<evidence with [B1] or [N1]>"],
   "washing_risk": "<low|medium|high>"
 }}
 
 Rules:
-- confidence_score: 0 = completely untrustworthy, 100 = fully credible
-- credibility_verdict: good = scores supported by news, stable = neutral, bad = scores not supported by news, washing = likely greenwashing
-- supporting_evidence: max 3 items
-- contradicting_evidence: max 3 items
-- washing_risk: low/medium/high — high if company claims high ESG scores but news shows controversies
-- Return JSON only. No preamble, no explanation, no markdown.
+- High confidence requires alignment between [B1] (Official) and [N1] (News).
+- 'washing' verdict applies if CRISIL/BRSR scores are high but News [N1] shows active controversies.
+- Every evidence item MUST cite [B1] or [Nx].
 """
 
 # ── LLM CALL 3A — COMMENDATORY NARRATIVE (confidence >= 70) ──────────────────
 
 NARRATIVE_COMMENDATORY_PROMPT = """
-You are writing an investor ESG report section for {company_name} ({ticker}).
-This company has a HIGH credibility score of {confidence_score}/100, indicating strong
-alignment between its reported CRISIL ESG scores and real-world evidence.
+You are writing a high-confidence ESG Investor Report for {company_name} ({ticker}).
+Confidence Score: {confidence_score}/100. (High alignment between scores and evidence).
 
-CRISIL ESG SUMMARY (0-100 scale, higher = better):
-{esg_summary}
+DATA ASSETS:
+- Official BRSR Audit [B1]: {official_fact_sheet}
+- News Intelligence [N1, N2...]: {positive_findings}
+- CRISIL Trend: {trend_classification} ({esg_summary})
 
-TREND: {trend_classification}
-KEY POSITIVE FINDINGS: {positive_findings}
-INVESTOR SIGNAL: {investor_signal}
+TASK:
+Write 2-3 paragraphs (150-400 words) validating this company's ESG leadership.
+1. Highlight how official disclosures [B1] confirm the strong CRISIL scores.
+2. Reference positive real-world evidence [N1] that reinforces the [B1] data.
+3. Explain why the signal is {investor_signal} based on this dual-verification.
+4. REQUIREMENT: You MUST use [B1] for official data and [N1, N2...] for news.
 
-Write a commendatory but factual 2-3 paragraph investor narrative (150-400 words).
-Highlight genuine ESG achievements, validate the positive trend, and explain why the signal is {investor_signal}.
-Be analytical, not promotional. Reference specific CRISIL scores where relevant.
-
-Return ONLY a valid JSON object:
+Return ONLY JSON:
 {{
-  "narrative": "<2-3 paragraphs>",
-  "key_highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
+  "narrative": "<text with citations [B1][N1]>",
+  "key_highlights": ["<highlight citing [B1] or [N1]>"],
   "investor_signal": "{investor_signal}"
 }}
-
-Rules:
-- narrative: 150-400 words, 2-3 paragraphs
-- key_highlights: exactly 3 items, each under 20 words
-- investor_signal: must be exactly {investor_signal}
-- Return JSON only. No preamble, no markdown.
 """
 
 # ── LLM CALL 3B — BALANCED NARRATIVE (confidence 40-69) ──────────────────────
 
 NARRATIVE_BALANCED_PROMPT = """
-You are writing an investor ESG report section for {company_name} ({ticker}).
-This company has a MODERATE credibility score of {confidence_score}/100, indicating
-partial alignment between its reported CRISIL ESG scores and real-world evidence.
+You are writing a professional investor report for {company_name} ({ticker}).
+Credibility Score: {confidence_score}/100.
 
-CRISIL ESG SUMMARY (0-100 scale, higher = better):
-{esg_summary}
+DATA SOURCES:
+- Official BRSR Highlights: {official_fact_sheet}
+- News Highlights: {positive_findings}, {negative_findings}
 
-TREND: {trend_classification}
-POSITIVE FINDINGS: {positive_findings}
-NEGATIVE FINDINGS: {negative_findings}
-INVESTOR SIGNAL: {investor_signal}
+Write a 2-3 paragraph narrative (150-400 words).
+1. Analyze the CRISIL trend vs official BRSR data [B1].
+2. Contrast with real-world news findings [N1, N2...].
+3. You MUST include the bracketed citations [B1] and [Nx] in the text.
 
-Write a balanced, objective 2-3 paragraph investor narrative (150-400 words).
-Acknowledge both strengths and areas of concern. Be neutral and analytical.
-Reference specific CRISIL scores and news findings.
-
-Return ONLY a valid JSON object:
+Return JSON:
 {{
-  "narrative": "<2-3 paragraphs>",
+  "narrative": "<text with citations [B1][N1]>",
   "key_highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
   "investor_signal": "{investor_signal}"
 }}
-
-Rules:
-- narrative: 150-400 words, 2-3 paragraphs
-- key_highlights: exactly 3 items, each under 20 words
-- investor_signal: must be exactly {investor_signal}
-- Return JSON only. No preamble, no markdown.
 """
 
 # ── LLM CALL 3C — CAUTIONARY NARRATIVE (confidence < 40) ─────────────────────
 
 NARRATIVE_CAUTIONARY_PROMPT = """
-You are writing an investor ESG report section for {company_name} ({ticker}).
-This company has a LOW credibility score of {confidence_score}/100, indicating
-significant gaps or contradictions between reported CRISIL ESG scores and real-world evidence.
+You are writing a cautionary ESG Audit for {company_name} ({ticker}).
+Confidence Score: {confidence_score}/100. (Significant contradictions detected).
 
-CRISIL ESG SUMMARY (0-100 scale, higher = better):
-{esg_summary}
+DATA ASSETS:
+- Official BRSR Audit [B1]: {official_fact_sheet}
+- News/Controversies [N1, N2...]: {negative_findings}
+- Governance Flags: {governance_flags}
+- Washing Risk: {washing_risk}
 
-TREND: {trend_classification}
-NEGATIVE FINDINGS: {negative_findings}
-GOVERNANCE FLAGS: {governance_flags}
-WASHING RISK: {washing_risk}
-INVESTOR SIGNAL: {investor_signal}
+TASK:
+Write 2-3 professional, cautionary paragraphs (150-400 words).
+1. Flag the discrepancy between the reported CRISIL trend and the news evidence [N1].
+2. Identify specific gaps in the official BRSR disclosure [B1] vs. external reality.
+3. Explain the {investor_signal} signal as a result of these unverified claims.
+4. REQUIREMENT: You MUST use [B1] and [N1, N2...] to anchor your warnings.
 
-Write a cautionary but professional 2-3 paragraph investor narrative (150-400 words).
-Flag specific ESG concerns, note the credibility gap between reported scores and news evidence,
-and explain the {investor_signal} signal clearly. Do not be alarmist — be analytical and evidence-based.
-
-Return ONLY a valid JSON object:
+Return ONLY JSON:
 {{
-  "narrative": "<2-3 paragraphs>",
-  "key_highlights": ["<highlight 1>", "<highlight 2>", "<highlight 3>"],
+  "narrative": "<text with citations [B1][N1]>",
+  "key_highlights": ["<highlight citing the controversy source>"],
   "investor_signal": "{investor_signal}"
 }}
-
-Rules:
-- narrative: 150-400 words, 2-3 paragraphs
-- key_highlights: exactly 3 items, each under 20 words
-- investor_signal: must be exactly {investor_signal}
-- Return JSON only. No preamble, no markdown.
 """
 
 # ── LLM CALL 4 — SYNTHESIS VERDICT ───────────────────────────────────────────
 
 SYNTHESIS_VERDICT_PROMPT = """
-You are producing the final comparative ESG verdict for an analysis of {num_companies} Indian companies
-rated by CRISIL ESG (scale 0-100, higher = better ESG performance).
+Analyze {num_companies} companies. Compare their CRISIL scores and the 
+reliability of their official [B1] vs. news [N1] data.
 
 COMPANY SUMMARIES:
 {company_summaries}
 
-Based on CRISIL ESG scores (higher = better), confidence scores, investor signals,
-and trend classifications, produce a final comparative verdict.
-
-Return ONLY a valid JSON object:
+Return ONLY JSON:
 {{
   "winner": "<ticker>",
-  "winner_name": "<company name>",
-  "rankings": ["<ticker 1>", "<ticker 2>", ...],
-  "verdict_text": "<3-4 sentence comparative summary>",
-  "most_improved": "<ticker>",
-  "biggest_risk": "<ticker>"
+  "winner_reason": "Highest CRISIL score verified by strong [B1] alignment.",
+  "rankings": ["<ticker 1>", "<ticker 2>"],
+  "verdict_text": "<3-4 sentences comparing official [B1] vs news [N1] across the group.>",
+  "biggest_risk": "<ticker with most [N1] controversies vs high [B1] claims>"
 }}
-
-Rules:
-- winner: ticker of company with best overall CRISIL ESG profile (highest score + improving trend)
-- rankings: ordered from best to worst ESG performance (highest CRISIL score first)
-- verdict_text: 3-4 sentences maximum, factual and comparative
-- most_improved: ticker showing strongest positive trend (biggest score increase)
-- biggest_risk: ticker with lowest CRISIL score or lowest credibility
-- Return JSON only. No preamble, no markdown.
 """

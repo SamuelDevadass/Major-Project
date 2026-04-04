@@ -79,7 +79,8 @@ class LLMAgent:
         call1, fall1 = self._call_mcp_llm(prompt1, ticker)
         if fall1: return self._fallback_company(ticker, "stage1_fail")
 
-        # STAGE 2: Credibility Validation
+        # Inside _run_company_pipeline (Stage 2)
+        # Add official_fact_sheet to the format call
         prompt2 = CREDIBILITY_VALIDATION_PROMPT.format(
             company_name=meta.get("company_name", ticker),
             ticker=ticker,
@@ -87,6 +88,10 @@ class LLMAgent:
             regression_summary=self._format_regression(trend),
             validation_table=self._format_validation_table(a3.get("validation_table", [])),
             crisil_rating=self._format_crisil_rating(meta),
+            
+            # --- NEW: PASS OFFICIAL DATA FROM AGENT 2 ---
+            official_fact_sheet=a2.get("official_fact_sheet", "No official BRSR data found."),
+            
             positive_findings=call1.get("positive_findings", []),
             negative_findings=call1.get("negative_findings", []),
             governance_flags=call1.get("governance_flags", []),
@@ -95,7 +100,8 @@ class LLMAgent:
         call2, fall2 = self._call_mcp_llm(prompt2, ticker)
         if fall2: return self._fallback_company(ticker, "stage2_fail", call1)
 
-        # STAGE 3: Narrative Generation
+        # Inside _run_company_pipeline (Stage 3)
+        # Add official_fact_sheet to the narrative format call
         confidence = call2.get("confidence_score", 50)
         investor_signal = self._derive_signal(confidence, trend)
         template = self._select_narrative_template(confidence)
@@ -106,12 +112,17 @@ class LLMAgent:
             confidence_score=confidence,
             esg_summary=self._format_esg_summary(yearly, trend),
             trend_classification=trend.get("trend_classification", "Unknown"),
+            
+            # --- NEW: PASS OFFICIAL DATA FOR NARRATIVE CITATION ---
+            official_fact_sheet=a2.get("official_fact_sheet", "No official report available."),
+            
             positive_findings=call1.get("positive_findings", []),
             negative_findings=call1.get("negative_findings", []),
             governance_flags=call1.get("governance_flags", []),
             washing_risk=call2.get("washing_risk", "medium"),
             investor_signal=investor_signal,
-        )
+        )# STAGE 3: Narrative Generation
+        
         call3, fall3 = self._call_mcp_llm(prompt3, ticker)
         if fall3: return self._fallback_company(ticker, "stage3_fail", call1, call2)
 
@@ -121,6 +132,7 @@ class LLMAgent:
             "narrative": call3.get("narrative", ""),
             "key_highlights": call3.get("key_highlights", []),
             "investor_signal": call3.get("investor_signal", investor_signal),
+            "references": a2.get("references", {}),
             "llm_fallback": False
         }
 
@@ -131,7 +143,13 @@ class LLMAgent:
             r = result.get(ticker, {})
             a1 = agent1_result.get(ticker, {})
             meta = a1.get("kaggle_meta", {})
-            summaries.append(f"Ticker: {ticker} | Company: {meta.get('company_name')} | Signal: {r.get('investor_signal')}")
+            #summaries.append(f"Ticker: {ticker} | Company: {meta.get('company_name')} | Signal: {r.get('investor_signal')}")
+            # Inside _run_synthesis
+            summaries.append(
+                f"Ticker: {ticker} | Company: {meta.get('company_name')} | Signal: {r.get('investor_signal')} | "
+                f"Credibility: {r.get('credibility', {}).get('credibility_verdict')} "
+                f"[Based on {len(r.get('references', {}))} sources]" # Provides count context
+            )
         
         prompt = SYNTHESIS_VERDICT_PROMPT.format(num_companies=len(companies), company_summaries="\n".join(summaries))
         verdict, _ = self._call_mcp_llm(prompt, "synthesis")
