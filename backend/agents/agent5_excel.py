@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xlsxwriter
 
-BASE_DIR    = Path(__file__).parent.parent
+BASE_DIR    = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = BASE_DIR / "outputs"
 
 # ── COLOURS ───────────────────────────────────────────────────────────────────
@@ -304,30 +304,41 @@ class ExcelAgent:
             row += 11 # Move below the narrative
 
             # --- NEW: SOURCE REFERENCES ---
-            row += 1 # Small gap
-            ws.write(row, 0, "Source References", bold_fmt)
-            row += 1
+            #row += 1 # Small gap
+            #ws.write(row, 0, "Source References", bold_fmt)
+            #row += 1
             
             # Fetch the map we passed through Agent 4
             # --- SOURCE REFERENCES FROM JSON ---
-            company_refs = reference_data.get(ticker, {})
+            #company_refs = reference_data.get(ticker, {})
 
-            if company_refs:
-                for key, value in company_refs.items():
-                    ws.write(row, 0, str(key), bold_fmt)
-                    
-                    # If it's a real URL make clickable
-                    if isinstance(value, str) and value.startswith("http"):
-                        ws.write_url(row, 1, value, string="Open Link")
-                    else:
-                        # Otherwise just write text
-                        ws.write(row, 1, str(value))
-                    
-                    row += 1
-            else:
-                ws.write(row, 0, "No references found.", narr_fmt)
+            # if company_refs:
+            #     for ref_id, url in company_refs.items(): 
+            #         ws.write(row, 0, ref_id)
+            #         ws.write(row, 1, url)
+            #         row += 1
+            # else:
+            #     ws.write(row, 0, "No references found.", narr_fmt)
             
-            # Update row counter for next company sheet loop if needed
-            row += 2
+            # # Update row counter for next company sheet loop if needed
+            # row += 2
+
+            # --- NEW SHEET: RAW JSON DUMP ---
+        # json_ws = wb.add_worksheet("Reference JSON")
+        # json_ws.set_column(0, 0, 30)
+        # json_ws.set_column(1, 1, 15)
+        # json_ws.set_column(2, 2, 80)
+        
+        # json_ws.write(0, 0, "Company Ticker", hdr_fmt)
+        # json_ws.write(0, 1, "Ref ID", hdr_fmt)
+        # json_ws.write(0, 2, "URL", hdr_fmt)
+        
+        # row = 1
+        # for company_ticker, refs in reference_data.items():
+        #     for ref_id, url in refs.items():
+        #         json_ws.write(row, 0, company_ticker)
+        #         json_ws.write(row, 1, ref_id)
+        #         json_ws.write(row, 2, url)
+        #         row += 1
 
         wb.close()

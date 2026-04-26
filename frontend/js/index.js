@@ -308,7 +308,7 @@ async function startAnalysis() {
   const customMessages = {
     1: ['Initializing orchestrator...', 'Validating session parameters...', 'Agent pipeline ready'],
     2: ['Connecting to CRISIL database...', 'Fetching ESG scores...', 'Loading historical metrics...'],
-    3: ['Scraping live news articles...', 'Building FAISS vector index...', 'Indexing complete — 450+ articles processed'],
+    3: ['Scraping live news articles...', 'Building FAISS vector index...', 'Indexing — 450+ articles to be processed ....',"Building the Vector DB ...."],
     4: ['Running LOWESS smoothing algorithm...', 'Computing adaptive forward validation...', 'Statistical models calibrated'],
     5: ['Initializing LLM agents (Groq + LLaMA3)...', 'Generating per-company narratives...', 'AI analysis in progress...'],
     6: ['Building Excel workbooks...', 'Rendering charts and visualizations...', 'Exporting final reports...']
