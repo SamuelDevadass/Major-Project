@@ -222,4 +222,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-<p align="center">Built at VIIT Pune &nbsp;·&nbsp; Department of Information Technology &nbsp;·&nbsp; 2025</p>
+<p align="center">Built at VIIT Pune &nbsp;·&nbsp; Department of Information Technology &nbsp;·&nbsp; 2026</p>
